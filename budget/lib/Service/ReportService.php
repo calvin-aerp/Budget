@@ -41,7 +41,9 @@ class ReportService {
         string $endDate,
         ?int $accountId = null,
         array $tagIds = [],
-        bool $includeUntagged = true
+        bool $includeUntagged = true,
+        ?array $visibleAccountIds = null,
+        ?array $visibleCategoryIds = null
     ): array {
         return $this->aggregator->generateSummary(
             $userId,
@@ -49,7 +51,9 @@ class ReportService {
             $startDate,
             $endDate,
             $tagIds,
-            $includeUntagged
+            $includeUntagged,
+            $visibleAccountIds,
+            $visibleCategoryIds
         );
     }
 
@@ -88,7 +92,8 @@ class ReportService {
         ?int $accountId = null,
         string $groupBy = 'category',
         ?int $tagSetId = null,
-        ?int $categoryId = null
+        ?int $categoryId = null,
+        ?array $visibleAccountIds = null
     ): array {
         $report = [
             'period' => [
@@ -104,10 +109,10 @@ class ReportService {
         ];
 
         $report['data'] = match ($groupBy) {
-            'category' => $this->calculator->getSpendingByCategory($userId, $accountId, $startDate, $endDate),
-            'month' => $this->calculator->getSpendingByMonth($userId, $accountId, $startDate, $endDate),
-            'vendor' => $this->calculator->getSpendingByVendor($userId, $accountId, $startDate, $endDate),
-            'account' => $this->calculator->getSpendingByAccount($userId, $startDate, $endDate),
+            'category' => $this->calculator->getSpendingByCategory($userId, $accountId, $startDate, $endDate, $visibleAccountIds),
+            'month' => $this->calculator->getSpendingByMonth($userId, $accountId, $startDate, $endDate, $visibleAccountIds),
+            'vendor' => $this->calculator->getSpendingByVendor($userId, $accountId, $startDate, $endDate, $visibleAccountIds),
+            'account' => $this->calculator->getSpendingByAccount($userId, $startDate, $endDate, $visibleAccountIds),
             'tag' => $tagSetId !== null
                 ? $this->calculator->getSpendingByTag($userId, $tagSetId, $startDate, $endDate, $accountId, $categoryId)
                 : [],
@@ -135,7 +140,8 @@ class ReportService {
         ?int $accountId = null,
         string $groupBy = 'month',
         ?int $tagSetId = null,
-        ?int $categoryId = null
+        ?int $categoryId = null,
+        ?array $visibleAccountIds = null
     ): array {
         $report = [
             'period' => [
@@ -172,8 +178,8 @@ class ReportService {
     /**
      * Generate a budget report with category-by-category breakdown.
      */
-    public function getBudgetReport(string $userId, string $startDate, string $endDate, ?int $accountId = null): array {
-        return $this->aggregator->getBudgetReport($userId, $startDate, $endDate, $accountId);
+    public function getBudgetReport(string $userId, string $startDate, string $endDate, ?int $accountId = null, ?array $visibleCategoryIds = null): array {
+        return $this->aggregator->getBudgetReport($userId, $startDate, $endDate, $accountId, $visibleCategoryIds);
     }
 
     /**

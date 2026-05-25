@@ -591,7 +591,7 @@ class TransactionMapper extends QBMapper {
     /**
      * Get spending grouped by month
      */
-    public function getSpendingByMonth(string $userId, ?int $accountId, string $startDate, string $endDate): array {
+    public function getSpendingByMonth(string $userId, ?int $accountId, string $startDate, string $endDate, ?array $visibleAccountIds = null): array {
         $qb = $this->db->getQueryBuilder();
 
         // Use SUBSTR with CAST for month extraction (compatible with SQLite, MySQL, PostgreSQL)
@@ -600,11 +600,11 @@ class TransactionMapper extends QBMapper {
             ->selectAlias($qb->func()->count('t.id'), 'count')
             ->from($this->getTableName(), 't')
             ->innerJoin('t', 'budget_accounts', 'a', $qb->expr()->eq('t.account_id', 'a.id'))
-            ->where($qb->expr()->eq('a.user_id', $qb->createNamedParameter($userId)))
-            ->andWhere($qb->expr()->eq('t.type', $qb->createNamedParameter('debit')))
+            //->where($qb->expr()->eq('a.user_id', $qb->createNamedParameter($userId)))
+            ->where($qb->expr()->eq('t.type', $qb->createNamedParameter('debit')))
             ->andWhere($qb->expr()->gte('t.date', $qb->createNamedParameter($startDate)))
             ->andWhere($qb->expr()->lte('t.date', $qb->createNamedParameter($endDate)));
-
+        $this->applyUserScope($qb, $userId, $visibleAccountIds);
         $this->excludeScheduledFuture($qb);
 
         if ($accountId !== null) {
@@ -624,7 +624,7 @@ class TransactionMapper extends QBMapper {
     /**
      * Get spending grouped by vendor
      */
-    public function getSpendingByVendor(string $userId, ?int $accountId, string $startDate, string $endDate, int $limit = 15): array {
+    public function getSpendingByVendor(string $userId, ?int $accountId, string $startDate, string $endDate, int $limit = 15, ?array $visibleAccountIds = null): array {
         $qb = $this->db->getQueryBuilder();
 
         $qb->select('t.vendor')
@@ -632,13 +632,13 @@ class TransactionMapper extends QBMapper {
             ->selectAlias($qb->func()->count('t.id'), 'count')
             ->from($this->getTableName(), 't')
             ->innerJoin('t', 'budget_accounts', 'a', $qb->expr()->eq('t.account_id', 'a.id'))
-            ->where($qb->expr()->eq('a.user_id', $qb->createNamedParameter($userId)))
-            ->andWhere($qb->expr()->eq('t.type', $qb->createNamedParameter('debit')))
+            ->where($qb->expr()->eq('t.type', $qb->createNamedParameter('debit')))
             ->andWhere($qb->expr()->gte('t.date', $qb->createNamedParameter($startDate)))
             ->andWhere($qb->expr()->lte('t.date', $qb->createNamedParameter($endDate)))
             ->andWhere($qb->expr()->isNotNull('t.vendor'))
             ->andWhere($qb->expr()->neq('t.vendor', $qb->createNamedParameter('')));
 
+        $this->applyUserScope($qb, $userId, $visibleAccountIds);
         $this->excludeScheduledFuture($qb);
 
         if ($accountId !== null) {
@@ -663,7 +663,7 @@ class TransactionMapper extends QBMapper {
     /**
      * Get income grouped by month
      */
-    public function getIncomeByMonth(string $userId, ?int $accountId, string $startDate, string $endDate): array {
+    public function getIncomeByMonth(string $userId, ?int $accountId, string $startDate, string $endDate, ?array $visibleAccountIds = null): array {
         $qb = $this->db->getQueryBuilder();
 
         $qb->select($qb->createFunction($this->monthExpr() . ' as month'))
@@ -671,11 +671,11 @@ class TransactionMapper extends QBMapper {
             ->selectAlias($qb->func()->count('t.id'), 'count')
             ->from($this->getTableName(), 't')
             ->innerJoin('t', 'budget_accounts', 'a', $qb->expr()->eq('t.account_id', 'a.id'))
-            ->where($qb->expr()->eq('a.user_id', $qb->createNamedParameter($userId)))
-            ->andWhere($qb->expr()->eq('t.type', $qb->createNamedParameter('credit')))
+            //->where($qb->expr()->eq('a.user_id', $qb->createNamedParameter($userId)))
+            ->where($qb->expr()->eq('t.type', $qb->createNamedParameter('credit')))
             ->andWhere($qb->expr()->gte('t.date', $qb->createNamedParameter($startDate)))
             ->andWhere($qb->expr()->lte('t.date', $qb->createNamedParameter($endDate)));
-
+        $this->applyUserScope($qb, $userId, $visibleAccountIds);
         $this->excludeScheduledFuture($qb);
 
         if ($accountId !== null) {
@@ -695,7 +695,7 @@ class TransactionMapper extends QBMapper {
     /**
      * Get income grouped by source (vendor)
      */
-    public function getIncomeBySource(string $userId, ?int $accountId, string $startDate, string $endDate, int $limit = 15): array {
+    public function getIncomeBySource(string $userId, ?int $accountId, string $startDate, string $endDate, int $limit = 15, ?array $visibleAccountIds = null): array {
         $qb = $this->db->getQueryBuilder();
 
         $qb->select('t.vendor')
@@ -703,11 +703,11 @@ class TransactionMapper extends QBMapper {
             ->selectAlias($qb->func()->count('t.id'), 'count')
             ->from($this->getTableName(), 't')
             ->innerJoin('t', 'budget_accounts', 'a', $qb->expr()->eq('t.account_id', 'a.id'))
-            ->where($qb->expr()->eq('a.user_id', $qb->createNamedParameter($userId)))
-            ->andWhere($qb->expr()->eq('t.type', $qb->createNamedParameter('credit')))
+            //->where($qb->expr()->eq('a.user_id', $qb->createNamedParameter($userId)))
+            ->where($qb->expr()->eq('t.type', $qb->createNamedParameter('credit')))
             ->andWhere($qb->expr()->gte('t.date', $qb->createNamedParameter($startDate)))
             ->andWhere($qb->expr()->lte('t.date', $qb->createNamedParameter($endDate)));
-
+        $this->applyUserScope($qb, $userId, $visibleAccountIds);
         $this->excludeScheduledFuture($qb);
 
         if ($accountId !== null) {
@@ -799,7 +799,8 @@ class TransactionMapper extends QBMapper {
         string $startDate,
         string $endDate,
         array $tagIds = [],
-        bool $includeUntagged = true
+        bool $includeUntagged = true,
+        ?array $visibleAccountIds = null
     ): array {
         $qb = $this->db->getQueryBuilder();
 
@@ -815,10 +816,10 @@ class TransactionMapper extends QBMapper {
             ->selectAlias($qb->createFunction('COUNT(DISTINCT t.id)'), 'count')
             ->from($this->getTableName(), 't')
             ->innerJoin('t', 'budget_accounts', 'a', $qb->expr()->eq('t.account_id', 'a.id'))
-            ->where($qb->expr()->eq('a.user_id', $qb->createNamedParameter($userId)))
-            ->andWhere($qb->expr()->gte('t.date', $qb->createNamedParameter($startDate)))
+            //->where($qb->expr()->eq('a.user_id', $qb->createNamedParameter($userId)))
+            ->where($qb->expr()->gte('t.date', $qb->createNamedParameter($startDate)))
             ->andWhere($qb->expr()->lte('t.date', $qb->createNamedParameter($endDate)));
-
+        $this->applyUserScope($qb, $userId, $visibleAccountIds);
         $this->excludeScheduledFuture($qb);
 
         // Apply tag filtering if requested
@@ -855,7 +856,8 @@ class TransactionMapper extends QBMapper {
         string $startDate,
         string $endDate,
         array $tagIds = [],
-        bool $includeUntagged = true
+        bool $includeUntagged = true,
+        ?array $visibleAccountIds = null
     ): array {
         $qb = $this->db->getQueryBuilder();
         $liabilityTypes = ['credit_card', 'loan', 'mortgage', 'line_of_credit'];
@@ -876,14 +878,14 @@ class TransactionMapper extends QBMapper {
             // Join to the linked transaction's account to check its type
             ->innerJoin('t', $this->getTableName(), 'lt', $qb->expr()->eq('t.linked_transaction_id', 'lt.id'))
             ->innerJoin('lt', 'budget_accounts', 'la', $qb->expr()->eq('lt.account_id', 'la.id'))
-            ->where($qb->expr()->eq('a.user_id', $qb->createNamedParameter($userId)))
-            ->andWhere($qb->expr()->gte('t.date', $qb->createNamedParameter($startDate)))
+            //->where($qb->expr()->eq('a.user_id', $qb->createNamedParameter($userId)))
+            ->where($qb->expr()->gte('t.date', $qb->createNamedParameter($startDate)))
             ->andWhere($qb->expr()->lte('t.date', $qb->createNamedParameter($endDate)))
             ->andWhere($qb->expr()->isNotNull('t.linked_transaction_id'))
             // Exclude if either this account or the linked account is a liability
             ->andWhere($qb->expr()->notIn('a.type', $qb->createNamedParameter($liabilityTypes, IQueryBuilder::PARAM_STR_ARRAY)))
             ->andWhere($qb->expr()->notIn('la.type', $qb->createNamedParameter($liabilityTypes, IQueryBuilder::PARAM_STR_ARRAY)));
-
+        $this->applyUserScope($qb, $userId, $visibleAccountIds);
         $this->excludeScheduledFuture($qb);
         $this->applyTagFilter($qb, $tagIds, $includeUntagged);
 
@@ -910,7 +912,8 @@ class TransactionMapper extends QBMapper {
         string $startDate,
         string $endDate,
         array $tagIds = [],
-        bool $includeUntagged = true
+        bool $includeUntagged = true,
+        ?array $visibleAccountIds = null
     ): array {
         $qb = $this->db->getQueryBuilder();
         $liabilityTypes = ['credit_card', 'loan', 'mortgage', 'line_of_credit'];
@@ -929,15 +932,16 @@ class TransactionMapper extends QBMapper {
             ->innerJoin('t', 'budget_accounts', 'a', $qb->expr()->eq('t.account_id', 'a.id'))
             ->innerJoin('t', $this->getTableName(), 'lt', $qb->expr()->eq('t.linked_transaction_id', 'lt.id'))
             ->innerJoin('lt', 'budget_accounts', 'la', $qb->expr()->eq('lt.account_id', 'la.id'))
-            ->where($qb->expr()->eq('a.user_id', $qb->createNamedParameter($userId)))
-            ->andWhere($qb->expr()->gte('t.date', $qb->createNamedParameter($startDate)))
+            //->where($qb->expr()->eq('a.user_id', $qb->createNamedParameter($userId)))
+            ->where($qb->expr()->gte('t.date', $qb->createNamedParameter($startDate)))
             ->andWhere($qb->expr()->lte('t.date', $qb->createNamedParameter($endDate)))
             ->andWhere($qb->expr()->isNotNull('t.linked_transaction_id'))
             ->andWhere($qb->expr()->notIn('a.type', $qb->createNamedParameter($liabilityTypes, IQueryBuilder::PARAM_STR_ARRAY)))
             ->andWhere($qb->expr()->notIn('la.type', $qb->createNamedParameter($liabilityTypes, IQueryBuilder::PARAM_STR_ARRAY)));
-
+        $this->applyUserScope($qb, $userId, $visibleAccountIds);
         $this->excludeScheduledFuture($qb);
         $this->applyTagFilter($qb, $tagIds, $includeUntagged);
+
 
         $qb->groupBy('t.account_id');
 
@@ -999,7 +1003,7 @@ class TransactionMapper extends QBMapper {
     /**
      * Get spending by account with aggregation in SQL (avoids N+1)
      */
-    public function getSpendingByAccountAggregated(string $userId, string $startDate, string $endDate): array {
+    public function getSpendingByAccountAggregated(string $userId, string $startDate, string $endDate, ?array $visibleAccountIds = null): array {
         $qb = $this->db->getQueryBuilder();
 
         $qb->select('a.id', 'a.name')
@@ -1007,12 +1011,13 @@ class TransactionMapper extends QBMapper {
             ->selectAlias($qb->func()->count('t.id'), 'count')
             ->from($this->getTableName(), 't')
             ->innerJoin('t', 'budget_accounts', 'a', $qb->expr()->eq('t.account_id', 'a.id'))
-            ->where($qb->expr()->eq('a.user_id', $qb->createNamedParameter($userId)))
-            ->andWhere($qb->expr()->eq('t.type', $qb->createNamedParameter('debit')))
+            //->where($qb->expr()->eq('a.user_id', $qb->createNamedParameter($userId)))
+            ->where($qb->expr()->eq('t.type', $qb->createNamedParameter('debit')))
             ->andWhere($qb->expr()->gte('t.date', $qb->createNamedParameter($startDate)))
             ->andWhere($qb->expr()->lte('t.date', $qb->createNamedParameter($endDate)));
-
+        $this->applyUserScope($qb, $userId, $visibleAccountIds);
         $this->excludeScheduledFuture($qb);
+        
 
         $qb->groupBy('a.id', 'a.name')
             ->orderBy('total', 'DESC');
@@ -1291,7 +1296,7 @@ class TransactionMapper extends QBMapper {
      * @param string $afterDate Transactions strictly after this date are summed
      * @return array<int, float> accountId => net change (credits positive, debits negative)
      */
-    public function getNetChangeAfterDateBatch(string $userId, string $afterDate): array {
+    public function getNetChangeAfterDateBatch(string $userId, string $afterDate, ?array $visibleAccountIds = null): array {
         $qb = $this->db->getQueryBuilder();
 
         $qb->select('t.account_id')
@@ -1301,15 +1306,16 @@ class TransactionMapper extends QBMapper {
             )
             ->from($this->getTableName(), 't')
             ->innerJoin('t', 'budget_accounts', 'a', $qb->expr()->eq('t.account_id', 'a.id'))
-            ->where($qb->expr()->eq('a.user_id', $qb->createNamedParameter($userId)))
-            ->andWhere($qb->expr()->gt('t.date', $qb->createNamedParameter($afterDate)))
+            //->where($qb->expr()->eq('a.user_id', $qb->createNamedParameter($userId)))
+            ->where($qb->expr()->gt('t.date', $qb->createNamedParameter($afterDate)))
             ->andWhere(
                 $qb->expr()->orX(
                     $qb->expr()->neq('t.status', $qb->createNamedParameter('scheduled')),
                     $qb->expr()->isNull('t.status')
                 )
-            )
-            ->groupBy('t.account_id');
+            );
+        $this->applyUserScope($qb, $userId, $visibleAccountIds);
+        $qb->groupBy('t.account_id');
 
         $result = $qb->executeQuery();
         $data = $result->fetchAll();
@@ -1369,7 +1375,8 @@ class TransactionMapper extends QBMapper {
         string $endDate,
         array $tagIds = [],
         bool $includeUntagged = true,
-        bool $excludeTransfers = false
+        bool $excludeTransfers = false,
+        ?array $visibleAccountIds = null
     ): array {
         $qb = $this->db->getQueryBuilder();
 
@@ -1385,10 +1392,10 @@ class TransactionMapper extends QBMapper {
             )
             ->from($this->getTableName(), 't')
             ->innerJoin('t', 'budget_accounts', 'a', $qb->expr()->eq('t.account_id', 'a.id'))
-            ->where($qb->expr()->eq('a.user_id', $qb->createNamedParameter($userId)))
-            ->andWhere($qb->expr()->gte('t.date', $qb->createNamedParameter($startDate)))
+            //->where($qb->expr()->eq('a.user_id', $qb->createNamedParameter($userId)))
+            ->where($qb->expr()->gte('t.date', $qb->createNamedParameter($startDate)))
             ->andWhere($qb->expr()->lte('t.date', $qb->createNamedParameter($endDate)));
-
+        $this->applyUserScope($qb, $userId, $visibleAccountIds);
         $this->excludeScheduledFuture($qb);
 
         if ($accountId !== null) {
@@ -1430,7 +1437,8 @@ class TransactionMapper extends QBMapper {
         string $endDate,
         array $tagIds = [],
         bool $includeUntagged = true,
-        bool $excludeTransfers = false
+        bool $excludeTransfers = false,
+        ?array $visibleAccountIds = null
     ): array {
         $qb = $this->db->getQueryBuilder();
 
@@ -1446,9 +1454,10 @@ class TransactionMapper extends QBMapper {
             )
             ->from($this->getTableName(), 't')
             ->innerJoin('t', 'budget_accounts', 'a', $qb->expr()->eq('t.account_id', 'a.id'))
-            ->where($qb->expr()->eq('a.user_id', $qb->createNamedParameter($userId)))
-            ->andWhere($qb->expr()->gte('t.date', $qb->createNamedParameter($startDate)))
+            //->where($qb->expr()->eq('a.user_id', $qb->createNamedParameter($userId)))
+            ->where($qb->expr()->gte('t.date', $qb->createNamedParameter($startDate)))
             ->andWhere($qb->expr()->lte('t.date', $qb->createNamedParameter($endDate)));
+        $this->applyUserScope($qb, $userId, $visibleAccountIds);
 
         $this->excludeScheduledFuture($qb);
 
@@ -1503,9 +1512,10 @@ class TransactionMapper extends QBMapper {
             )
             ->from($this->getTableName(), 't')
             ->innerJoin('t', 'budget_accounts', 'a', $qb->expr()->eq('t.account_id', 'a.id'))
-            ->where($qb->expr()->eq('a.user_id', $qb->createNamedParameter($userId)))
-            ->andWhere($qb->expr()->gte('t.date', $qb->createNamedParameter($startDate)))
+            //->where($qb->expr()->eq('a.user_id', $qb->createNamedParameter($userId)))
+            ->where($qb->expr()->gte('t.date', $qb->createNamedParameter($startDate)))
             ->andWhere($qb->expr()->lte('t.date', $qb->createNamedParameter($endDate)));
+        $this->applyUserScope($qb, $userId, $visibleAccountIds);
 
         $this->excludeScheduledFuture($qb);
 

@@ -65,7 +65,9 @@ class ReportController extends Controller {
                 $endDate,
                 $accountId,
                 $tagIds ?? [],
-                $includeUntagged ?? true
+                $includeUntagged ?? true,
+                $this->getVisibleAccountIds($this->getEffectiveUserId()),
+                $this->getVisibleCategoryIds($this->getEffectiveUserId())
             );
             return new DataResponse($summary);
         } catch (\Exception $e) {
@@ -99,7 +101,8 @@ class ReportController extends Controller {
                 $accountId,
                 $groupBy,
                 $tagSetId,
-                $categoryId
+                $categoryId,
+                $this->getVisibleAccountIds($this->getEffectiveUserId())
             );
             return new DataResponse($spending);
         } catch (\Exception $e) {
@@ -133,7 +136,8 @@ class ReportController extends Controller {
                 $accountId,
                 $groupBy,
                 $tagSetId,
-                $categoryId
+                $categoryId,
+                $this->getVisibleAccountIds($this->getEffectiveUserId())
             );
             return new DataResponse($income);
         } catch (\Exception $e) {
@@ -198,7 +202,8 @@ class ReportController extends Controller {
                 $this->getEffectiveUserId(),
                 $startDate,
                 $endDate,
-                $accountId
+                $accountId,
+                $this->getVisibleCategoryIds($this->getEffectiveUserId()),
             );
             return new DataResponse($budget);
         } catch (\Exception $e) {

@@ -42,9 +42,8 @@ class ReportService {
         ?int $accountId = null,
         array $tagIds = [],
         bool $includeUntagged = true,
-        array $visibleAccountIds = null,
-        ?array $visibleCategoryIds = null,
-        array $visibleAccountIds = []
+        array $visibleAccountIds = [],
+        ?array $visibleCategoryIds = null
     ): array {
         return $this->aggregator->generateSummary(
             $userId,

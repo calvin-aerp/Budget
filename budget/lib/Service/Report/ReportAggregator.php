@@ -52,9 +52,8 @@ class ReportAggregator {
         string $endDate,
         array $tagIds = [],
         bool $includeUntagged = true,
-        array $visibleAccountIds = null,
-        ?array $visibleCategoryIds = null,
-        array $visibleAccountIds = []
+        array $visibleAccountIds = [],
+        ?array $visibleCategoryIds = null
     ): array {
         if ($accountId) {
             $accounts = [$this->accountMapper->findById($accountId)];

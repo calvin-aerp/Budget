@@ -42,8 +42,9 @@ class ReportService {
         ?int $accountId = null,
         array $tagIds = [],
         bool $includeUntagged = true,
-        ?array $visibleAccountIds = null,
-        ?array $visibleCategoryIds = null
+        array $visibleAccountIds = null,
+        ?array $visibleCategoryIds = null,
+        array $visibleAccountIds = []
     ): array {
         return $this->aggregator->generateSummary(
             $userId,
@@ -68,7 +69,8 @@ class ReportService {
         string $endDate,
         ?int $accountId = null,
         array $tagIds = [],
-        bool $includeUntagged = true
+        bool $includeUntagged = true,
+        array $visibleAccountIds = []
     ): array {
         return $this->aggregator->generateSummaryWithComparison(
             $userId,
@@ -76,7 +78,8 @@ class ReportService {
             $startDate,
             $endDate,
             $tagIds,
-            $includeUntagged
+            $includeUntagged,
+            $visibleAccountIds
         );
     }
 

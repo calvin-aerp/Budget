@@ -235,7 +235,8 @@ class ReportController extends Controller {
                 $endDate,
                 $accountId,
                 $tagIds ?? [],
-                $includeUntagged ?? true
+                $includeUntagged ?? true,
+                $this->getVisibleAccountIds()
             );
             return new DataResponse($summary);
         } catch (\Exception $e) {

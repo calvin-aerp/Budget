@@ -52,12 +52,17 @@ class ReportAggregator {
         string $endDate,
         array $tagIds = [],
         bool $includeUntagged = true,
-        ?array $visibleAccountIds = null,
-        ?array $visibleCategoryIds = null
+        array $visibleAccountIds = null,
+        ?array $visibleCategoryIds = null,
+        array $visibleAccountIds = []
     ): array {
-        $accounts = $accountId
-            ? [$this->accountMapper->findById($accountId)]
-            : $this->accountMapper->findByIds($visibleAccountIds);
+        if ($accountId) {
+            $accounts = [$this->accountMapper->findById($accountId)];
+        } elseif (!empty($visibleAccountIds)) {
+            $accounts = $this->accountMapper->findByIds($visibleAccountIds);
+        } else {
+            $accounts = $this->accountMapper->findAll($userId);
+        }
 
         $baseCurrency = $this->conversionService->getBaseCurrency($userId);
         $needsConversion = $accountId === null && $this->conversionService->needsConversion($accounts);
@@ -264,10 +269,11 @@ class ReportAggregator {
         string $startDate,
         string $endDate,
         array $tagIds = [],
-        bool $includeUntagged = true
+        bool $includeUntagged = true,
+        array $visibleAccountIds = []
     ): array {
         // Current period
-        $current = $this->generateSummary($userId, $accountId, $startDate, $endDate, $tagIds, $includeUntagged);
+        $current = $this->generateSummary($userId, $accountId, $startDate, $endDate, $tagIds, $includeUntagged, $visibleAccountIds);
 
         // Calculate previous period (same duration)
         $start = new \DateTime($startDate);
@@ -285,7 +291,8 @@ class ReportAggregator {
             $prevStart->format('Y-m-d'),
             $prevEnd->format('Y-m-d'),
             $tagIds,
-            $includeUntagged
+            $includeUntagged,
+            $visibleAccountIds
         );
 
         // Calculate changes

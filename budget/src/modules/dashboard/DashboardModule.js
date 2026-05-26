@@ -307,6 +307,9 @@ export default class DashboardModule {
             this.populateAccountSelector('net-worth-account-select');
             this.populateAccountSelector('recent-transactions-account-select');
 
+            // Create DOM for any saved duplicate instances
+            this.createSavedInstances();
+
             // Refresh widgets that have a saved account selection
             await this.refreshSavedWidgetSelections();
 
@@ -316,8 +319,6 @@ export default class DashboardModule {
             // Apply dashboard widget visibility
             this.applyDashboardVisibility();
 
-            // Create DOM for any saved duplicate instances
-            this.createSavedInstances();
 
             // Initialize Gridstack for dashboard layout
             this.initGridstack();
@@ -488,20 +489,48 @@ export default class DashboardModule {
 
     async refreshSavedWidgetSelections() {
         const refreshes = [];
-
-        const trendAcct = document.getElementById('trend-account-select');
-        if (trendAcct?.value) {
-            const periodEl = document.getElementById('trend-period-select');
-            const months = periodEl ? parseInt(periodEl.value) : 6;
-            refreshes.push(this.refreshTrendChart(months, trendAcct.value));
+        //Get widgets from dashboard config
+        //Get Keys from this.dashboardConfig.widgets?.tileSettings
+        const widgetTileKeys = Object.keys(this.dashboardConfig.widgets?.tileSettings || {});
+        //If we have a key with getWidgetType === trendChart, skip this and call refreshWidgetInstance for all instances of trendChart instead
+        if (widgetTileKeys.some(key => this.getWidgetType(key) === 'trendChart')) {
+            //TileSettings can have keys for instances if customized, otherwise they are under instances with the instanceId as the key and the widget type as the value. So we need to check both places for trendChart keys
+            //We need to filter by getWidgetType(key) === 'trendChart' because the key could be for an instance like trendChart__2
+            const trendInstances = Object.keys(this.dashboardConfig.widgets?.instances || {}).filter(key => this.getWidgetType(key) === 'trendChart');
+            //push tileSettings keys for trendChart widgets to trendInstances array as well, since those are also customized instances that need to be refreshed. If they don't already exist in the array
+            widgetTileKeys.filter(key => this.getWidgetType(key) === 'trendChart' && !trendInstances.includes(key)).forEach(key => trendInstances.push(key));
+            trendInstances.forEach(instanceId => {
+                refreshes.push(this.refreshWidgetInstance(instanceId));
+            });
+        }
+        else {
+            const trendAcct = document.getElementById('trend-account-select');
+            if (trendAcct?.value) {
+                const periodEl = document.getElementById('trend-period-select');
+                const months = periodEl ? parseInt(periodEl.value) : 6;
+                refreshes.push(this.refreshTrendChart(months, trendAcct.value));
+            }
         }
 
-        const spendingAcct = document.getElementById('spending-account-select');
-        {
-            const periodEl = document.getElementById('spending-period-select');
-            const period = periodEl ? periodEl.value : 'month';
-            const accountId = spendingAcct?.value || null;
-            refreshes.push(this.refreshSpendingChart(period, accountId));
+        //Likewise for spending chart
+        if (widgetTileKeys.some(key => this.getWidgetType(key) === 'spendingChart')) {
+            //TileSettings can have keys for instances if customized, otherwise they are under instances with the instanceId as the key and the widget type as the value. So we need to check both places for spendingChart keys
+            //We need to filter by getWidgetType(key) === 'spendingChart' because the key could be for an instance like spendingChart__2
+            const spendingInstances = Object.keys(this.dashboardConfig.widgets?.instances || {}).filter(key => this.getWidgetType(key) === 'spendingChart');
+            //push tileSettings keys for spendingChart widgets to spendingInstances array as well, since those are also customized instances that need to be refreshed. If they don't already exist in the array
+            widgetTileKeys.filter(key => this.getWidgetType(key) === 'spendingChart' && !spendingInstances.includes(key)).forEach(key => spendingInstances.push(key));
+            spendingInstances.forEach(instanceId => {
+                refreshes.push(this.refreshWidgetInstance(instanceId));
+            });
+        }
+        else {
+            const spendingAcct = document.getElementById('spending-account-select');
+            {
+                const periodEl = document.getElementById('spending-period-select');
+                const period = periodEl ? periodEl.value : 'month';
+                const accountId = spendingAcct?.value || null;
+                refreshes.push(this.refreshSpendingChart(period, accountId));
+            }
         }
 
         const netWorthAcct = document.getElementById('net-worth-account-select');
@@ -935,9 +964,9 @@ export default class DashboardModule {
                     <div class="recent-transaction-info">
                         <div class="recent-transaction-icon ${isCredit ? 'income' : 'expense'}">
                             ${isCredit ?
-                                '<svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M16 6l2.29 2.29-4.88 4.88-4-4L2 16.59 3.41 18l6-6 4 4 6.3-6.29L22 12V6z"/></svg>' :
-                                '<svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M16 18l2.29-2.29-4.88-4.88-4 4L2 7.41 3.41 6l6 6 4-4 6.3 6.29L22 12v6z"/></svg>'
-                            }
+                    '<svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M16 6l2.29 2.29-4.88 4.88-4-4L2 16.59 3.41 18l6-6 4 4 6.3-6.29L22 12V6z"/></svg>' :
+                    '<svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M16 18l2.29-2.29-4.88-4.88-4 4L2 7.41 3.41 6l6 6 4-4 6.3 6.29L22 12v6z"/></svg>'
+                }
                         </div>
                         <div class="recent-transaction-details">
                             <div class="recent-transaction-description">${this.escapeHtml(tx.description || tx.vendor || t('budget', 'Transaction'))}</div>
@@ -1591,11 +1620,11 @@ export default class DashboardModule {
                 </thead>
                 <tbody>
                     ${categories.map(cat => {
-                        const budget = cat.budgeted || cat.budget || 0;
-                        const spent = cat.spent || 0;
-                        const remaining = budget - spent;
-                        const percentage = budget > 0 ? (spent / budget * 100) : 0;
-                        return `
+            const budget = cat.budgeted || cat.budget || 0;
+            const spent = cat.spent || 0;
+            const remaining = budget - spent;
+            const percentage = budget > 0 ? (spent / budget * 100) : 0;
+            return `
                             <tr>
                                 <td>${this.escapeHtml(cat.name)}</td>
                                 <td>${this.formatCurrency(budget)}</td>
@@ -1605,7 +1634,7 @@ export default class DashboardModule {
                                 </td>
                             </tr>
                         `;
-                    }).join('')}
+        }).join('')}
                 </tbody>
             </table>
         `;
@@ -2107,9 +2136,9 @@ export default class DashboardModule {
                         <strong>${this.formatCurrency(totalSpending)}</strong>
                     </div>
                     ${sortedData.map((item, index) => {
-                        const amount = data[index];
-                        const percentage = totalSpending > 0 ? ((amount / totalSpending) * 100).toFixed(1) : 0;
-                        return `
+                const amount = data[index];
+                const percentage = totalSpending > 0 ? ((amount / totalSpending) * 100).toFixed(1) : 0;
+                return `
                             <div class="spending-breakdown-item">
                                 <div class="spending-breakdown-label">
                                     <span class="spending-dot" style="background: ${colors[index]}"></span>
@@ -2121,7 +2150,7 @@ export default class DashboardModule {
                                 </div>
                             </div>
                         `;
-                    }).join('')}
+            }).join('')}
                 </div>
             `;
         }
@@ -2786,6 +2815,10 @@ export default class DashboardModule {
                 config.tileSettings = saved.tileSettings || {};
             }
 
+            if (!config.instances){
+                config.instances = saved.instances || {};
+            }
+
             return config;
         } catch (e) {
             console.error('Failed to parse dashboard config', e);
@@ -2843,8 +2876,8 @@ export default class DashboardModule {
             // Respect conditional widgets (Budget Alerts, Debt Payoff)
             if (visible) {
                 const hasConditionalHide = element.hasAttribute('style') &&
-                                           element.getAttribute('style').includes('display: none') &&
-                                           (key === 'budgetAlerts' || key === 'debtPayoff');
+                    element.getAttribute('style').includes('display: none') &&
+                    (key === 'budgetAlerts' || key === 'debtPayoff');
                 if (!hasConditionalHide) {
                     element.style.display = '';
                 }
@@ -4038,7 +4071,10 @@ export default class DashboardModule {
         const configCategory = category === 'hero' ? 'hero' : 'widgets';
         const settings = this.dashboardConfig[configCategory]?.tileSettings?.[widgetId] || {};
         const baseType = this.getWidgetType(widgetId);
-
+        // Use instance-aware refresh for duplicable widgets
+        if (DUPLICABLE_WIDGETS.includes(baseType)) {
+            return this.refreshWidgetInstance(widgetId);
+        }
         // Sync tile settings back to HTML selectors (base instances only)
         if (!this.isDuplicateInstance(widgetId)) {
             const selectorSync = {
@@ -4059,10 +4095,6 @@ export default class DashboardModule {
             }
         }
 
-        // Use instance-aware refresh for duplicable widgets
-        if (DUPLICABLE_WIDGETS.includes(baseType)) {
-            return this.refreshWidgetInstance(widgetId);
-        }
 
         const refreshMap = {
             'upcomingBills': () => this.updateUpcomingBillsWidget?.(),

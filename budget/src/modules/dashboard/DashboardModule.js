@@ -967,7 +967,7 @@ export default class DashboardModule {
         const card = document.getElementById('budget-alerts-card');
         const container = document.getElementById('budget-alerts');
 
-        if (!card || !container) return;
+        if (!card || !container || !alerts) return;
 
         // Hide the card if no alerts
         if (!Array.isArray(alerts) || alerts.length === 0) {
@@ -1247,8 +1247,7 @@ export default class DashboardModule {
 
     updateBudgetProgressWidget(categories) {
         const container = document.getElementById('budget-progress');
-        if (!container) return;
-
+        if (!container || !categories) return;
         if (!Array.isArray(categories) || categories.length === 0) {
             container.innerHTML = `<div class="empty-state-small">${t('budget', 'No budgets configured')}</div>`;
             return;

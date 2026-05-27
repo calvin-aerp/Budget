@@ -47,7 +47,7 @@ export default class ImportModule {
     }
 
     formatDate(date) {
-        return formatters.formatDate(date);
+        return formatters.formatDate(date, this.settings);
     }
 
     getPrimaryCurrency() {
@@ -131,7 +131,7 @@ export default class ImportModule {
             <label for="import-preset">${t('budget', 'Import Format')}</label>
             <select id="import-preset">
                 <option value="">${t('budget', 'Custom CSV (manual mapping)')}</option>
-                ${this.presets.map(p => `<option value="${p.id}">${p.name}</option>`).join('')}
+                ${this.presets.map(p => `<option value="${dom.escapeHtml(String(p.id))}">${dom.escapeHtml(p.name)}</option>`).join('')}
             </select>
             <p class="preset-description" id="preset-description" style="display:none;"></p>
         `;

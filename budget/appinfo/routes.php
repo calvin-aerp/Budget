@@ -156,19 +156,14 @@ return [
         ['name' => 'bill#undoSkip', 'url' => '/api/bills/{id}/undo-skip', 'verb' => 'POST'],
         ['name' => 'bill#undoPaid', 'url' => '/api/bills/{id}/undo-paid', 'verb' => 'POST'],
 
-        // Goals routes (Savings Goals)
-        ['name' => 'goals#index', 'url' => '/api/goals', 'verb' => 'GET'],
+        // Savings Goals routes
         ['name' => 'goals#index', 'url' => '/api/savings-goals', 'verb' => 'GET'],
-        ['name' => 'goals#show', 'url' => '/api/goals/{id}', 'verb' => 'GET'],
         ['name' => 'goals#show', 'url' => '/api/savings-goals/{id}', 'verb' => 'GET'],
-        ['name' => 'goals#create', 'url' => '/api/goals', 'verb' => 'POST'],
         ['name' => 'goals#create', 'url' => '/api/savings-goals', 'verb' => 'POST'],
-        ['name' => 'goals#update', 'url' => '/api/goals/{id}', 'verb' => 'PUT'],
         ['name' => 'goals#update', 'url' => '/api/savings-goals/{id}', 'verb' => 'PUT'],
-        ['name' => 'goals#destroy', 'url' => '/api/goals/{id}', 'verb' => 'DELETE'],
         ['name' => 'goals#destroy', 'url' => '/api/savings-goals/{id}', 'verb' => 'DELETE'],
-        ['name' => 'goals#progress', 'url' => '/api/goals/{id}/progress', 'verb' => 'GET'],
-        ['name' => 'goals#forecast', 'url' => '/api/goals/{id}/forecast', 'verb' => 'GET'],
+        ['name' => 'goals#progress', 'url' => '/api/savings-goals/{id}/progress', 'verb' => 'GET'],
+        ['name' => 'goals#forecast', 'url' => '/api/savings-goals/{id}/forecast', 'verb' => 'GET'],
 
         // Net Worth routes
         ['name' => 'netWorth#current', 'url' => '/api/net-worth/current', 'verb' => 'GET'],
@@ -306,15 +301,6 @@ return [
         ['name' => 'setting#show', 'url' => '/api/settings/{key}', 'verb' => 'GET'],
         ['name' => 'setting#updateKey', 'url' => '/api/settings/{key}', 'verb' => 'PUT'],
         ['name' => 'setting#destroy', 'url' => '/api/settings/{key}', 'verb' => 'DELETE'],
-
-        // Auth routes (password protection)
-        ['name' => 'auth#status', 'url' => '/api/auth/status', 'verb' => 'GET'],
-        ['name' => 'auth#setup', 'url' => '/api/auth/setup', 'verb' => 'POST'],
-        ['name' => 'auth#verify', 'url' => '/api/auth/verify', 'verb' => 'POST'],
-        ['name' => 'auth#lock', 'url' => '/api/auth/lock', 'verb' => 'POST'],
-        ['name' => 'auth#extend', 'url' => '/api/auth/extend', 'verb' => 'POST'],
-        ['name' => 'auth#disable', 'url' => '/api/auth/disable', 'verb' => 'DELETE'],
-        ['name' => 'auth#changePassword', 'url' => '/api/auth/password', 'verb' => 'PUT'],
 
         // Migration routes (data export/import)
         ['name' => 'migration#export', 'url' => '/api/migration/export', 'verb' => 'GET'],

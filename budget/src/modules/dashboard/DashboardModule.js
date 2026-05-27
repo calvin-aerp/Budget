@@ -489,60 +489,36 @@ export default class DashboardModule {
 
     async refreshSavedWidgetSelections() {
         const refreshes = [];
-        //Get widgets from dashboard config
-        //Get Keys from this.dashboardConfig.widgets?.tileSettings
-        const widgetTileKeys = Object.keys(this.dashboardConfig.widgets?.tileSettings || {});
-        //If we have a key with getWidgetType === trendChart, skip this and call refreshWidgetInstance for all instances of trendChart instead
-        if (widgetTileKeys.some(key => this.getWidgetType(key) === 'trendChart')) {
-            //TileSettings can have keys for instances if customized, otherwise they are under instances with the instanceId as the key and the widget type as the value. So we need to check both places for trendChart keys
-            //We need to filter by getWidgetType(key) === 'trendChart' because the key could be for an instance like trendChart__2
-            const trendInstances = Object.keys(this.dashboardConfig.widgets?.instances || {}).filter(key => this.getWidgetType(key) === 'trendChart');
-            //push tileSettings keys for trendChart widgets to trendInstances array as well, since those are also customized instances that need to be refreshed. If they don't already exist in the array
-            widgetTileKeys.filter(key => this.getWidgetType(key) === 'trendChart' && !trendInstances.includes(key)).forEach(key => trendInstances.push(key));
-            trendInstances.forEach(instanceId => {
-                refreshes.push(this.refreshWidgetInstance(instanceId));
-            });
-        }
-        else {
-            const trendAcct = document.getElementById('trend-account-select');
-            if (trendAcct?.value) {
-                const periodEl = document.getElementById('trend-period-select');
-                const months = periodEl ? parseInt(periodEl.value) : 6;
-                refreshes.push(this.refreshTrendChart(months, trendAcct.value));
+        const tileSettings = this.dashboardConfig.widgets?.tileSettings || {};
+
+        // Refresh base tiles that have saved settings (accountId or dateRange)
+        const widgetRefreshMap = {
+            trendChart: (s) => {
+                const months = { '30d': 1, '90d': 3, '6m': 6, '1y': 12 }[s.dateRange] || 6;
+                return this.refreshTrendChart(months, s.accountId || null);
+            },
+            spendingChart: (s) => {
+                const period = { '30d': 'month', '90d': '3months', '6m': '3months', '1y': 'year' }[s.dateRange] || 'month';
+                return this.refreshSpendingChart(period, s.accountId || null);
+            },
+            netWorthHistory: (s) => {
+                const days = { '30d': 30, '90d': 90, '6m': 180, '1y': 365 }[s.dateRange] || 30;
+                return this.refreshNetWorthChart(days, s.accountId || null);
+            },
+            recentTransactions: (s) => {
+                return this.refreshRecentTransactions(s.accountId || null);
+            },
+            assetValueHistory: (s) => {
+                const days = { '30d': 30, '90d': 90, '6m': 180, '1y': 365 }[s.dateRange] || 30;
+                return this.refreshAssetValueChart(days);
+            },
+        };
+
+        for (const [widgetId, refreshFn] of Object.entries(widgetRefreshMap)) {
+            const settings = tileSettings[widgetId];
+            if (settings && (settings.accountId || settings.dateRange)) {
+                refreshes.push(refreshFn(settings));
             }
-        }
-
-        //Likewise for spending chart
-        if (widgetTileKeys.some(key => this.getWidgetType(key) === 'spendingChart')) {
-            //TileSettings can have keys for instances if customized, otherwise they are under instances with the instanceId as the key and the widget type as the value. So we need to check both places for spendingChart keys
-            //We need to filter by getWidgetType(key) === 'spendingChart' because the key could be for an instance like spendingChart__2
-            const spendingInstances = Object.keys(this.dashboardConfig.widgets?.instances || {}).filter(key => this.getWidgetType(key) === 'spendingChart');
-            //push tileSettings keys for spendingChart widgets to spendingInstances array as well, since those are also customized instances that need to be refreshed. If they don't already exist in the array
-            widgetTileKeys.filter(key => this.getWidgetType(key) === 'spendingChart' && !spendingInstances.includes(key)).forEach(key => spendingInstances.push(key));
-            spendingInstances.forEach(instanceId => {
-                refreshes.push(this.refreshWidgetInstance(instanceId));
-            });
-        }
-        else {
-            const spendingAcct = document.getElementById('spending-account-select');
-            {
-                const periodEl = document.getElementById('spending-period-select');
-                const period = periodEl ? periodEl.value : 'month';
-                const accountId = spendingAcct?.value || null;
-                refreshes.push(this.refreshSpendingChart(period, accountId));
-            }
-        }
-
-        const netWorthAcct = document.getElementById('net-worth-account-select');
-        if (netWorthAcct?.value) {
-            const activeBtn = document.querySelector('#net-worth-period-selector .period-btn.active');
-            const days = activeBtn ? parseInt(activeBtn.dataset.days) : 30;
-            refreshes.push(this.refreshNetWorthChart(days, netWorthAcct.value));
-        }
-
-        const recentTxAcct = document.getElementById('recent-transactions-account-select');
-        if (recentTxAcct?.value) {
-            refreshes.push(this.refreshRecentTransactions(recentTxAcct.value));
         }
 
         if (refreshes.length > 0) {
@@ -2815,8 +2791,14 @@ export default class DashboardModule {
                 config.tileSettings = saved.tileSettings || {};
             }
 
-            if (!config.instances){
+            // Restore duplicate tile instances
+            if (!config.instances) {
                 config.instances = saved.instances || {};
+            }
+
+            // Restore positions for Gridstack
+            if (!config.positions) {
+                config.positions = saved.positions || {};
             }
 
             return config;
@@ -4071,30 +4053,11 @@ export default class DashboardModule {
         const configCategory = category === 'hero' ? 'hero' : 'widgets';
         const settings = this.dashboardConfig[configCategory]?.tileSettings?.[widgetId] || {};
         const baseType = this.getWidgetType(widgetId);
-        // Use instance-aware refresh for duplicable widgets
+
+        // Use instance-aware refresh for duplicable widgets (reads from tileSettings directly)
         if (DUPLICABLE_WIDGETS.includes(baseType)) {
             return this.refreshWidgetInstance(widgetId);
         }
-        // Sync tile settings back to HTML selectors (base instances only)
-        if (!this.isDuplicateInstance(widgetId)) {
-            const selectorSync = {
-                'trendChart': { account: 'trend-account-select' },
-                'spendingChart': { account: 'spending-account-select' },
-                'netWorthHistory': { account: 'net-worth-account-select' },
-                'recentTransactions': { account: 'recent-transactions-account-select' },
-                'accountIncome': { account: 'hero-account-income-select' },
-                'accountExpenses': { account: 'hero-account-expenses-select' },
-            };
-
-            const sync = selectorSync[widgetId];
-            if (sync) {
-                if (sync.account && settings.accountId !== undefined) {
-                    const sel = document.getElementById(sync.account);
-                    if (sel) sel.value = settings.accountId || '';
-                }
-            }
-        }
-
 
         const refreshMap = {
             'upcomingBills': () => this.updateUpcomingBillsWidget?.(),

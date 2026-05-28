@@ -39,11 +39,13 @@ class BudgetAlertService {
      *
      * @return array Array of alerts with category info, spent, budget, percentage, and severity
      */
-    public function getAlerts(string $userId): array {
+    public function getAlerts(string $userId, array $visibleCategoryIds = null, array $visibleAccountIds = null): array {
         $alerts = [];
 
         // Get all categories and resolve effective budgets for current month
-        $categories = $this->categoryMapper->findAll($userId);
+        $categories = $visibleCategoryIds !== null
+            ? $this->categoryMapper->findByIdsUnscoped($visibleCategoryIds)
+            : $this->categoryMapper->findAll($userId);
         $currentMonth = date('Y-m');
         $snapshotOverrides = $this->budgetSnapshotMapper->findEffectiveBatch($userId, $currentMonth);
 
@@ -90,7 +92,8 @@ class BudgetAlertService {
                 $userId,
                 $category->getId(),
                 $range['start'],
-                $range['end']
+                $range['end'],
+                $visibleAccountIds
             );
 
             $percentage = $budget > 0 ? ($spent / $budget) : 0;
@@ -133,10 +136,12 @@ class BudgetAlertService {
      *
      * @return array Array of all categories with budget status
      */
-    public function getBudgetStatus(string $userId): array {
+    public function getBudgetStatus(string $userId, array $visibleCategoryIds = null, array $visibleAccountIds = null): array {
         $statuses = [];
 
-        $categories = $this->categoryMapper->findAll($userId);
+        $categories = $visibleCategoryIds !== null
+            ? $this->categoryMapper->findByIdsUnscoped($visibleCategoryIds)
+            : $this->categoryMapper->findAll($userId);
         $currentMonth = date('Y-m');
         $snapshotOverrides = $this->budgetSnapshotMapper->findEffectiveBatch($userId, $currentMonth);
 
@@ -181,7 +186,8 @@ class BudgetAlertService {
                 $userId,
                 $category->getId(),
                 $range['start'],
-                $range['end']
+                $range['end'],  
+                $visibleAccountIds
             );
 
             $percentage = $budget > 0 ? ($spent / $budget) : 0;
@@ -217,8 +223,8 @@ class BudgetAlertService {
     /**
      * Get summary statistics for budget alerts.
      */
-    public function getSummary(string $userId): array {
-        $statuses = $this->getBudgetStatus($userId);
+    public function getSummary(string $userId, array $visibleCategoryIds = null): array {
+        $statuses = $this->getBudgetStatus($visibleCategoryIds);
 
         $totalBudget = 0;
         $totalSpent = 0;
@@ -383,13 +389,15 @@ class BudgetAlertService {
      * Get total spending for a category within a date range.
      * Includes both direct transactions and split allocations.
      */
-    private function getCategorySpending(string $userId, int $categoryId, string $startDate, string $endDate): float {
+    private function getCategorySpending(string $userId, int $categoryId, string $startDate, string $endDate, array $visibleAccountIds = []): float {
         // Get direct spending (non-split transactions)
         $directSpending = $this->transactionMapper->getCategorySpending(
             $userId,
             $categoryId,
             $startDate,
-            $endDate
+            $endDate,
+            null,
+            $visibleAccountIds
         );
 
         // Get spending from splits

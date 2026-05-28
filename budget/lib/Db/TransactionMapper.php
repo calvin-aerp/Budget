@@ -1772,14 +1772,14 @@ class TransactionMapper extends QBMapper {
      * Get spending for a single category within a date range for a user.
      * Only counts non-split debit transactions.
      */
-    public function getCategorySpending(string $userId, int $categoryId, string $startDate, string $endDate, ?int $accountId = null): float {
+    public function getCategorySpending(string $userId, int $categoryId, string $startDate, string $endDate, ?int $accountId = null, ?array $visibleAccountIds = null): float {
         $qb = $this->db->getQueryBuilder();
 
         $qb->selectAlias($qb->func()->sum('t.amount'), 'total')
             ->from($this->getTableName(), 't')
             ->innerJoin('t', 'budget_accounts', 'a', $qb->expr()->eq('t.account_id', 'a.id'))
-            ->where($qb->expr()->eq('a.user_id', $qb->createNamedParameter($userId)))
-            ->andWhere($qb->expr()->eq('t.category_id', $qb->createNamedParameter($categoryId, IQueryBuilder::PARAM_INT)))
+            //->where($qb->expr()->eq('a.user_id', $qb->createNamedParameter($userId)))
+            ->where($qb->expr()->eq('t.category_id', $qb->createNamedParameter($categoryId, IQueryBuilder::PARAM_INT)))
             ->andWhere($qb->expr()->gte('t.date', $qb->createNamedParameter($startDate)))
             ->andWhere($qb->expr()->lte('t.date', $qb->createNamedParameter($endDate)))
             ->andWhere($qb->expr()->eq('t.type', $qb->createNamedParameter('debit')))
@@ -1787,7 +1787,7 @@ class TransactionMapper extends QBMapper {
                 $qb->expr()->eq('t.is_split', $qb->createNamedParameter(false, IQueryBuilder::PARAM_BOOL)),
                 $qb->expr()->isNull('t.is_split')
             ));
-
+        $this->applyUserScope($qb, $userId, $visibleAccountIds);
         $this->excludeScheduledFuture($qb);
 
         if ($accountId !== null) {
